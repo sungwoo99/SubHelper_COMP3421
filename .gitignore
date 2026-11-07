@@ -1,0 +1,18 @@
+# 1. Node.js reliance folder (required)
+# It can be restored at any time with npm install, so never upload it. (large size)
+node_modules/
+npm-debug.log
+
+
+# 2. local database files (required)
+.data/
+database.db
+*.db
+*.sqlite
+
+
+# 3. Environment variable files
+.env
+
+# 4. OS generated files
+.DS_Store

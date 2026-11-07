@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SubHelper — Subscription & Expense Manager</title>
+  <!-- Font Awesome Icons (Lecture 5) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  <!-- Top Header -->
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <i class="fa-solid fa-layer-group brand-icon" aria-hidden="true"></i>
+        <div>
+          <h1>SubHelper</h1>
+          <p class="subtitle">Recurring Expense &amp; Budget Tracker</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button type="button" id="theme-toggle-btn" class="btn btn-outline" aria-label="Toggle dark mode">
+          <i class="fa-solid fa-moon"></i> <span>Theme</span>
+        </button>
+        <button type="button" id="open-add-modal-btn" class="btn btn-primary">
+          <i class="fa-solid fa-plus"></i> New Subscription
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Navigation (3 Functional Views) -->
+  <nav class="main-nav" aria-label="Primary Navigation">
+    <div class="container nav-inner">
+      <button type="button" class="nav-tab active" data-target="view-dashboard">
+        <i class="fa-solid fa-chart-pie"></i> 1. Dashboard
+      </button>
+      <button type="button" class="nav-tab" data-target="view-directory">
+        <i class="fa-solid fa-list-check"></i> 2. Subscriptions
+      </button>
+      <button type="button" class="nav-tab" data-target="view-budgets">
+        <i class="fa-solid fa-wallet"></i> 3. Category Budgets
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Content Container -->
+  <main class="container main-content">
+
+    <!-- ==========================================
+         VIEW 1: FINANCIAL OVERVIEW DASHBOARD
+         ========================================== -->
+    <section id="view-dashboard" class="view-section active" aria-labelledby="dash-heading">
+      <div class="section-header">
+        <h2 id="dash-heading">Financial Overview</h2>
+        <p class="section-desc">Real-time monthly projections, renewal countdowns, and budget utilization.</p>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div class="kpi-grid">
+        <article class="kpi-card">
+          <span class="kpi-label">Monthly Projected</span>
+          <strong class="kpi-value" id="kpi-monthly">$0.00</strong>
+          <span class="kpi-sub">Active recurring cost</span>
+        </article>
+
+        <article class="kpi-card">
+          <span class="kpi-label">Annual Projected</span>
+          <strong class="kpi-value" id="kpi-annual">$0.00</strong>
+          <span class="kpi-sub">12-month estimate</span>
+        </article>
+
+        <article class="kpi-card">
+          <span class="kpi-label">Active Services</span>
+          <strong class="kpi-value" id="kpi-active-count">0</strong>
+          <span class="kpi-sub" id="kpi-paused-count">0 paused</span>
+        </article>
+
+        <article class="kpi-card">
+          <span class="kpi-label">Due Within 14 Days</span>
+          <strong class="kpi-value highlight-warn" id="kpi-due-soon">0</strong>
+          <span class="kpi-sub">Upcoming renewals</span>
+        </article>
+      </div>
+
+      <!-- Dashboard 2-Column Layout -->
+      <div class="dashboard-columns">
+        <!-- Left: Category Budget Progress Bars -->
+        <article class="panel">
+          <div class="panel-header">
+            <h3>Category Budget Status</h3>
+            <span class="badge">Monthly Spend vs Cap</span>
+          </div>
+          <div id="dashboard-budget-bars" class="budget-bars-list">
+            <!-- Populated by app.js -->
+          </div>
+        </article>
+
+        <!-- Right: Upcoming Renewal D-Day Tracker -->
+        <article class="panel">
+          <div class="panel-header">
+            <h3>Upcoming Renewals (D-Day)</h3>
+            <span class="badge">Sorted by Date</span>
+          </div>
+          <ul id="dashboard-upcoming-list" class="upcoming-list">
+            <!-- Populated by app.js -->
+          </ul>
+        </article>
+      </div>
+
+      <div class="charts-container">
+        <div class="chart-box">
+          <canvas id="monthlyBarChart"></canvas>
+        </div>
+        <div class="chart-box">
+          <canvas id="categoryDoughnutChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         VIEW 2: SUBSCRIPTION DIRECTORY (CRUD #1)
+         ========================================== -->
+    <section id="view-directory" class="view-section" aria-labelledby="dir-heading">
+      <div class="section-header">
+        <h2 id="dir-heading">Subscription Directory</h2>
+        <p class="section-desc">Search, filter, update, pause, or remove your recurring subscriptions.</p>
+      </div>
+
+      <!-- Filter & Search Controls -->
+      <div class="filter-bar panel">
+        <div class="filter-group">
+          <label for="search-input">Search</label>
+          <input type="text" id="search-input" placeholder="Netflix, iCloud..." />
+        </div>
+
+        <div class="filter-group">
+          <label for="filter-category">Category</label>
+          <select id="filter-category">
+            <option value="ALL">All Categories</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label for="filter-status">Status</label>
+          <select id="filter-status">
+            <option value="ALL">All Status</option>
+            <option value="ACTIVE">Active Only</option>
+            <option value="PAUSED">Paused Only</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label for="sort-select">Sort By</label>
+          <select id="sort-select">
+            <option value="date-asc">Next Renewal (Soonest)</option>
+            <option value="cost-desc">Monthly Equiv. Cost (High → Low)</option>
+            <option value="name-asc">Service Name (A → Z)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Subscription Cards Grid -->
+      <div id="subscription-grid" class="sub-grid">
+        <!-- Populated by app.js -->
+      </div>
+    </section>
+
+    <!-- ==========================================
+         VIEW 3: CATEGORY BUDGETS (CRUD #2)
+         ========================================== -->
+    <section id="view-budgets" class="view-section" aria-labelledby="budget-heading">
+      <div class="section-header">
+        <h2 id="budget-heading">Category Budgets &amp; Data Settings</h2>
+        <p class="section-desc">Configure monthly spending limits per category and manage local storage data.</p>
+      </div>
+
+      <div class="dashboard-columns">
+        <!-- Left: Create / Update Category Budget Form -->
+        <article class="panel">
+          <h3 id="budget-form-title">Set Category Budget</h3>
+          <form id="budget-form" novalidate>
+            <input type="hidden" id="budget-id" />
+
+            <div class="form-field">
+              <label for="budget-category-name">Category Name *</label>
+              <input type="text" id="budget-category-name" placeholder="e.g., Entertainment" required />
+            </div>
+
+            <div class="form-field">
+              <label for="budget-monthly-cap">Monthly Cap ($ USD) *</label>
+              <input type="number" id="budget-monthly-cap" step="0.01" min="1" placeholder="50.00" required />
+            </div>
+
+            <div class="form-field">
+              <label for="budget-alert-threshold">Warning Threshold (%) *</label>
+              <input type="number" id="budget-alert-threshold" min="10" max="100" value="80" required />
+            </div>
+
+            <p id="budget-form-error" class="form-error" role="alert"></p>
+
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Save Budget</button>
+              <button type="button" id="budget-reset-btn" class="btn btn-outline">Clear Form</button>
+            </div>
+          </form>
+        </article>
+
+        <!-- Right: Category Budget Table -->
+        <article class="panel">
+          <div class="panel-header">
+            <h3>Configured Budgets</h3>
+            <button type="button" id="seed-reset-btn" class="btn btn-sm btn-outline">
+              <i class="fa-solid fa-rotate-left"></i> Reset Demo Seed Data
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Monthly Spend</th>
+                  <th>Monthly Cap</th>
+                  <th>Alert At</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="budget-table-body">
+                <!-- Populated by app.js -->
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==========================================
+       MODAL: ADD / EDIT SUBSCRIPTION
+       ========================================== -->
+  <div id="sub-modal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h3 id="modal-title">Add Subscription</h3>
+        <button type="button" id="close-modal-btn" class="icon-btn" aria-label="Close modal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="sub-form" novalidate>
+        <input type="hidden" id="sub-id" />
+
+        <div class="form-field">
+          <label for="sub-name">Service Name *</label>
+          <input type="text" id="sub-name" placeholder="e.g., Netflix, Spotify" required />
+        </div>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label for="sub-category">Category *</label>
+            <select id="sub-category" required>
+              <!-- Populated from Category Budgets -->
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="sub-cycle">Billing Cycle *</label>
+            <select id="sub-cycle" required>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label for="sub-cost">Billing Amount ($ USD) *</label>
+            <input type="number" id="sub-cost" step="0.01" min="0.01" placeholder="15.99" required />
+          </div>
+
+          <div class="form-field">
+            <label for="sub-date">Next Renewal Date *</label>
+            <input type="date" id="sub-date" required />
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="sub-notes">Notes (Plan tier, shared status)</label>
+          <input type="text" id="sub-notes" placeholder="Optional note..." />
+        </div>
+
+        <div class="form-field checkbox-field">
+          <input type="checkbox" id="sub-active" checked />
+          <label for="sub-active">Subscription is currently active</label>
+        </div>
+
+        <p id="sub-form-error" class="form-error" role="alert"></p>
+
+        <div class="modal-footer">
+          <button type="button" id="cancel-modal-btn" class="btn btn-outline">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Subscription</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <p>COMP3421 Web Application Design and Development · Solo Project (SubHelper)</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
