@@ -5,7 +5,7 @@
 let myBarChart = null;
 let myDoughnutChart = null;
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = "";
 
 const STORAGE_KEYS = {
   THEME: "subtrack_theme",
