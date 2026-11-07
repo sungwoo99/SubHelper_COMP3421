@@ -26,20 +26,31 @@ let budgets = [];
 // 1. 서버에서 데이터 가져오기 (Read)
 async function loadDataFromServer() {
   try {
-    const [subRes, budgetRes] = await Promise.all([
+    const [subRes, budgetRes, rateRes] = await Promise.all([
       fetch(`${API_BASE_URL}/subscriptions`),
-      fetch(`${API_BASE_URL}/budgets`)
+      fetch(`${API_BASE_URL}/budgets`),
+      fetch(`${API_BASE_URL}/api/rates`) // <-- 누락되었던 /api/ 경로 추가
     ]);
     
-    if (!subRes.ok || !budgetRes.ok) throw new Error('Failed to fetch data');
+    if (!subRes.ok || !budgetRes.ok) {
+       throw new Error('Failed to fetch subscriptions or budgets');
+    }
 
     subscriptions = await subRes.json();
     budgets = await budgetRes.json();
     
+    // 환율 요청이 성공했을 때만 JSON 파싱 (에러 방어 로직 추가)
+    if (rateRes.ok) {
+      const rates = await rateRes.json();
+      if (rates.KRW && rates.HKD) {
+        EXCHANGE_RATES.KRW = rates.KRW;
+        EXCHANGE_RATES.HKD = rates.HKD;
+      }
+    }
+    
     renderAll();
   } catch (error) {
     console.error("Error loading data:", error);
-    alert("서버에서 데이터를 불러오는데 실패했습니다.");
   }
 }
 
