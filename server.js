@@ -103,14 +103,14 @@ function initializeDB() {
    ========================================================================== */
 
 // 1. Budgets API
-app.get('/api/budgets', (req, res) => {
+app.get('/budgets', (req, res) => {
   db.all(`SELECT * FROM budgets`, [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });
 });
 
-app.post('/api/budgets', (req, res) => {
+app.post('/budgets', (req, res) => {
   const { id, categoryName, monthlyCap, alertThreshold } = req.body;
   const sql = `INSERT INTO budgets (id, categoryName, monthlyCap, alertThreshold) VALUES (?, ?, ?, ?)`;
   db.run(sql, [id, categoryName, monthlyCap, alertThreshold], function(err) {
@@ -119,7 +119,7 @@ app.post('/api/budgets', (req, res) => {
   });
 });
 
-app.put('/api/budgets/:id', (req, res) => {
+app.put('/budgets/:id', (req, res) => {
   const { categoryName, monthlyCap, alertThreshold } = req.body;
   const sql = `UPDATE budgets SET categoryName = ?, monthlyCap = ?, alertThreshold = ? WHERE id = ?`;
   db.run(sql, [categoryName, monthlyCap, alertThreshold, req.params.id], function(err) {
@@ -128,7 +128,7 @@ app.put('/api/budgets/:id', (req, res) => {
   });
 });
 
-app.delete('/api/budgets/:id', (req, res) => {
+app.delete('/budgets/:id', (req, res) => {
   db.run(`DELETE FROM budgets WHERE id = ?`, req.params.id, function(err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ message: 'Budget deleted successfully' });
@@ -136,7 +136,7 @@ app.delete('/api/budgets/:id', (req, res) => {
 });
 
 // 2. Subscriptions API
-app.get('/api/subscriptions', (req, res) => {
+app.get('/subscriptions', (req, res) => {
   db.all(`SELECT * FROM subscriptions`, [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     // SQLite does not have a Boolean type, so it is stored as an integer (1/0) and converted when sending to the client
@@ -145,7 +145,7 @@ app.get('/api/subscriptions', (req, res) => {
   });
 });
 
-app.post('/api/subscriptions', (req, res) => {
+app.post('/subscriptions', (req, res) => {
   const { id, name, category, billingCycle, cost, nextRenewalDate, isActive, notes } = req.body;
   const activeInt = isActive ? 1 : 0; // Boolean -> Integer
   const sql = `INSERT INTO subscriptions (id, name, category, billingCycle, cost, nextRenewalDate, isActive, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
@@ -155,7 +155,7 @@ app.post('/api/subscriptions', (req, res) => {
   });
 });
 
-app.put('/api/subscriptions/:id', (req, res) => {
+app.put('/subscriptions/:id', (req, res) => {
   const { name, category, billingCycle, cost, nextRenewalDate, isActive, notes } = req.body;
   const activeInt = isActive ? 1 : 0;
   const sql = `UPDATE subscriptions SET name = ?, category = ?, billingCycle = ?, cost = ?, nextRenewalDate = ?, isActive = ?, notes = ? WHERE id = ?`;
@@ -165,11 +165,17 @@ app.put('/api/subscriptions/:id', (req, res) => {
   });
 });
 
-app.delete('/api/subscriptions/:id', (req, res) => {
+app.delete('/subscriptions/:id', (req, res) => {
   db.run(`DELETE FROM subscriptions WHERE id = ?`, req.params.id, function(err) {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ message: 'Subscription deleted successfully' });
   });
+});
+
+// 3. Rates API (환율 데이터 제공)
+app.get('/rates', (req, res) => {
+  // 프론트엔드에서 요구하는 JSON 형식으로 환율 데이터 응답
+  res.json({ KRW: 1400, HKD: 7.8 }); 
 });
 
 // Basic route
@@ -178,5 +184,5 @@ app.get(/(.*)/, (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
