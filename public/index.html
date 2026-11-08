@@ -289,36 +289,42 @@
           </div>
         </div>
 
-        <div class="form-row">
-          <div class="form-field">
-            <label for="sub-cost">Billing Amount ($ USD) *</label>
-            <input type="number" id="sub-cost" step="0.01" min="0.01" placeholder="15.99" required />
-          </div>
-
-          <div class="form-field">
-            <label for="sub-date">Next Renewal Date *</label>
-            <input type="date" id="sub-date" required />
+        <div class="form-group">
+          <label id="label-sub-cost" for="sub-cost">Billing Amount *</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="number" id="sub-cost" step="0.01" min="0" placeholder="0.00" required style="flex: 1;">
+            <select id="sub-currency" style="width: 110px;">
+              <option value="USD">USD ($)</option>
+              <option value="KRW">KRW (₩)</option>
+              <option value="HKD">HKD (HK$)</option>
+            </select>
           </div>
         </div>
 
         <div class="form-field">
-          <label for="sub-notes">Notes (Plan tier, shared status)</label>
-          <input type="text" id="sub-notes" placeholder="Optional note..." />
+          <label for="sub-date">Next Renewal Date *</label>
+          <input type="date" id="sub-date" required />
         </div>
-
-        <div class="form-field checkbox-field">
-          <input type="checkbox" id="sub-active" checked />
-          <label for="sub-active">Subscription is currently active</label>
-        </div>
-
-        <p id="sub-form-error" class="form-error" role="alert"></p>
-
-        <div class="modal-footer">
-          <button type="button" id="cancel-modal-btn" class="btn btn-outline">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Subscription</button>
-        </div>
-      </form>
     </div>
+
+    <div class="form-field">
+      <label for="sub-notes">Notes (Plan tier, shared status)</label>
+      <input type="text" id="sub-notes" placeholder="Optional note..." />
+    </div>
+
+    <div class="form-field checkbox-field">
+      <input type="checkbox" id="sub-active" checked />
+      <label for="sub-active">Subscription is currently active</label>
+    </div>
+
+    <p id="sub-form-error" class="form-error" role="alert"></p>
+
+    <div class="modal-footer">
+      <button type="button" id="cancel-modal-btn" class="btn btn-outline">Cancel</button>
+      <button type="submit" class="btn btn-primary">Save Subscription</button>
+    </div>
+    </form>
+  </div>
   </div>
 
   <footer class="site-footer">

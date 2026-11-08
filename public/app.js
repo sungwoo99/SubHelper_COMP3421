@@ -26,10 +26,24 @@ let budgets = [];
 // 1. 서버에서 데이터 가져오기 (Read)
 async function loadDataFromServer() {
   try {
-    const [subRes, budgetRes, rateRes] = await Promise.all([
+    // 환율 데이터 안전 조회 (실패해도 앱이 멈추지 않음)
+    try {
+      const rateRes = await fetch(`${API_BASE_URL}/rates`);
+      if (rateRes.ok) {
+        const rates = await rateRes.json();
+        if (rates.KRW && rates.HKD) {
+          EXCHANGE_RATES.KRW = rates.KRW;
+          EXCHANGE_RATES.HKD = rates.HKD;
+        }
+      }
+    } catch (rateErr) {
+      console.warn("환율 조회 실패, 기본 환율을 적용합니다:", rateErr);
+    }
+
+    // 구독 및 예산 데이터 조회
+    const [subRes, budgetRes] = await Promise.all([
       fetch(`${API_BASE_URL}/subscriptions`),
-      fetch(`${API_BASE_URL}/budgets`),
-      fetch(`${API_BASE_URL}/api/rates`) // <-- 누락되었던 /api/ 경로 추가
+      fetch(`${API_BASE_URL}/budgets`)
     ]);
     
     if (!subRes.ok || !budgetRes.ok) {
@@ -39,15 +53,7 @@ async function loadDataFromServer() {
     subscriptions = await subRes.json();
     budgets = await budgetRes.json();
     
-    // 환율 요청이 성공했을 때만 JSON 파싱 (에러 방어 로직 추가)
-    if (rateRes.ok) {
-      const rates = await rateRes.json();
-      if (rates.KRW && rates.HKD) {
-        EXCHANGE_RATES.KRW = rates.KRW;
-        EXCHANGE_RATES.HKD = rates.HKD;
-      }
-    }
-    
+    // 화면 렌더링 실행
     renderAll();
   } catch (error) {
     console.error("Error loading data:", error);
@@ -100,9 +106,13 @@ async function deleteData(endpoint, id) {
 /* ==========================================================================
    Calculation & Formatting Helpers
    ========================================================================== */
-function formatCurrency(amount) {
-  if (currentCurrency === "KRW") return `${CURRENCY_SYMBOLS[currentCurrency]}${Math.round(amount).toLocaleString()}`;
-  return `${CURRENCY_SYMBOLS[currentCurrency]}${amount.toFixed(2)}`;
+function formatCurrency(amountInUSD) {
+  const rate = EXCHANGE_RATES[currentCurrency] || 1;
+  const converted = amountInUSD * rate;
+  if (currentCurrency === "KRW") {
+    return `${CURRENCY_SYMBOLS[currentCurrency]}${Math.round(converted).toLocaleString()}`;
+  }
+  return `${CURRENCY_SYMBOLS[currentCurrency]}${converted.toFixed(2)}`;
 }
 
 function getMonthlyEquivalent(sub) {
@@ -153,24 +163,26 @@ function populateCategorySelects() {
 
 function renderCharts() {
   const activeSubs = subscriptions.filter(s => s.isActive);
+  const rate = EXCHANGE_RATES[currentCurrency] || 1;
 
-  // 도넛 차트 데이터 (카테고리별 비중)
+  // 도넛 차트 (현재 통화 기준 환산)
   const catTotals = {};
   budgets.forEach(b => catTotals[b.categoryName] = 0);
   activeSubs.forEach(s => {
     if (catTotals[s.category] !== undefined) {
-      catTotals[s.category] += getMonthlyEquivalent(s);
+      catTotals[s.category] += getMonthlyEquivalent(s) * rate;
     }
   });
 
-  // 바 차트 데이터 (월별 예상 지출)
+  // 바 차트 (현재 통화 기준 환산)
   const monthlyData = new Array(12).fill(0);
   activeSubs.forEach(s => {
+    const costInCurrent = s.cost * rate;
     if (s.billingCycle === 'monthly') {
-      for (let i = 0; i < 12; i++) monthlyData[i] += s.cost;
+      for (let i = 0; i < 12; i++) monthlyData[i] += costInCurrent;
     } else if (s.billingCycle === 'yearly') {
       const month = new Date(s.nextRenewalDate).getMonth();
-      monthlyData[month] += s.cost;
+      monthlyData[month] += costInCurrent;
     }
   });
 
@@ -194,7 +206,7 @@ function renderCharts() {
         borderWidth: 1
       }]
     },
-    options: { responsive: true, plugins: { legend: { display: false }, title: { display: true, text: 'Expected Monthly Spending Trend' } } }
+    options: { responsive: true, plugins: { legend: { display: false }, title: { display: true, text: `Expected Monthly Spending Trend (${currentCurrency})` } } }
   });
 
   const ctxDoughnut = document.getElementById('categoryDoughnutChart').getContext('2d');
@@ -207,9 +219,10 @@ function renderCharts() {
         backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
       }]
     },
-    options: { responsive: true, plugins: { title: { display: true, text: 'Monthly Spending by Category' } } }
+    options: { responsive: true, plugins: { title: { display: true, text: `Monthly Spending by Category (${currentCurrency})` } } }
   });
 }
+
 
 function renderDashboard() {
   const activeSubs = subscriptions.filter((s) => s.isActive);
@@ -368,6 +381,8 @@ function openModal(editId = null) {
   errorEl.textContent = "";
   form.reset();
 
+  const currencySelect = document.getElementById("sub-currency");
+
   if (editId) {
     const sub = subscriptions.find((s) => s.id === editId);
     if (!sub) return;
@@ -376,14 +391,20 @@ function openModal(editId = null) {
     document.getElementById("sub-name").value = sub.name;
     document.getElementById("sub-category").value = sub.category;
     document.getElementById("sub-cycle").value = sub.billingCycle;
-    document.getElementById("sub-cost").value = (currentCurrency === "KRW" ? Math.round(sub.cost) : sub.cost.toFixed(2));
+    
+    // 현재 선택된 통화 단위로 환산해서 보여줌
+    const currentRate = EXCHANGE_RATES[currentCurrency] || 1;
+    const convertedCost = sub.cost * currentRate;
+    document.getElementById("sub-cost").value = (currentCurrency === "KRW" ? Math.round(convertedCost) : convertedCost.toFixed(2));
+    if (currencySelect) currencySelect.value = currentCurrency;
+
     document.getElementById("sub-date").value = sub.nextRenewalDate;
     document.getElementById("sub-notes").value = sub.notes || "";
     document.getElementById("sub-active").checked = sub.isActive;
   } else {
     document.getElementById("modal-title").textContent = "Add Subscription";
     document.getElementById("sub-id").value = "";
-    // 기본 Renewal Date 설정은 유지 (필요에 따라 getFutureDateString 구현)
+    if (currencySelect) currencySelect.value = currentCurrency;
     const d = new Date(); d.setDate(d.getDate() + 7);
     document.getElementById("sub-date").value = d.toISOString().split("T")[0];
   }
@@ -451,40 +472,11 @@ document.addEventListener("DOMContentLoaded", () => {
   loadDataFromServer();
 
   // Currency Switcher Logic
-  document.getElementById("global-currency").addEventListener("change", async (e) => {
-    const newCurrency = e.target.value;
-    if (newCurrency === currentCurrency) return;
-
-    const oldRate = EXCHANGE_RATES[currentCurrency];
-    const newRate = EXCHANGE_RATES[newCurrency];
-    const conversionFactor = newRate / oldRate;
-
-    // 모든 구독 비용을 순회하며 서버에 업데이트 (Promise.all 사용)
-    const subPromises = subscriptions.map(sub => {
-      const updatedSub = { ...sub, cost: sub.cost * conversionFactor };
-      return fetch(`${API_BASE_URL}/subscriptions/${sub.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedSub)
-      });
-    });
-
-    const budgetPromises = budgets.map(b => {
-      const updatedBudget = { ...b, monthlyCap: b.monthlyCap * conversionFactor };
-      return fetch(`${API_BASE_URL}/budgets/${b.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedBudget)
-      });
-    });
-
-    await Promise.all([...subPromises, ...budgetPromises]);
-
-    currentCurrency = newCurrency;
+  // Currency Switcher Logic (DB 훼손 없이 즉시 화면 재렌더링)
+  document.getElementById("global-currency").addEventListener("change", (e) => {
+    currentCurrency = e.target.value;
     localStorage.setItem(STORAGE_KEYS.CURRENCY, currentCurrency);
-    
-    // DB 업데이트가 끝났으니 최신 데이터를 다시 불러와서 렌더링
-    await loadDataFromServer();
+    renderAll();
   });
 
   // Navigation Tabs Switching
@@ -517,24 +509,39 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Subscription Form Submit (POST or PUT)
+  // Subscription Form Submit (POST or PUT)
   document.getElementById("sub-form").addEventListener("submit", (e) => {
     e.preventDefault();
     const id = document.getElementById("sub-id").value;
     const name = document.getElementById("sub-name").value.trim();
     const category = document.getElementById("sub-category").value;
     const billingCycle = document.getElementById("sub-cycle").value;
-    const cost = parseFloat(document.getElementById("sub-cost").value);
+    const rawCost = parseFloat(document.getElementById("sub-cost").value);
+    const selectedCurrency = document.getElementById("sub-currency") ? document.getElementById("sub-currency").value : currentCurrency;
     const nextRenewalDate = document.getElementById("sub-date").value;
     const notes = document.getElementById("sub-notes").value.trim();
     const isActive = document.getElementById("sub-active").checked;
     const errorEl = document.getElementById("sub-form-error");
 
-    if (!name || !category || isNaN(cost) || cost <= 0 || !nextRenewalDate) {
+    if (!name || !category || isNaN(rawCost) || rawCost <= 0 || !nextRenewalDate) {
       errorEl.textContent = `Please enter a valid service name, positive cost, and renewal date.`;
       return;
     }
 
-    const subData = { id: id || "sub_" + Date.now(), name, category, billingCycle, cost, nextRenewalDate, isActive, notes };
+    // 💡 입력된 통화 금액을 DB 저장용 기준 통화(USD)로 자동 환산
+    const rate = EXCHANGE_RATES[selectedCurrency] || 1;
+    const costInUSD = rawCost / rate;
+
+    const subData = { 
+      id: id || "sub_" + Date.now(), 
+      name, 
+      category, 
+      billingCycle, 
+      cost: costInUSD, // USD 값으로 저장
+      nextRenewalDate, 
+      isActive, 
+      notes 
+    };
 
     if (id) {
       updateData('subscriptions', id, subData);

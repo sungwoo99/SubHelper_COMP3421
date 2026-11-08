@@ -173,9 +173,22 @@ app.delete('/subscriptions/:id', (req, res) => {
 });
 
 // 3. Rates API (환율 데이터 제공)
-app.get('/rates', (req, res) => {
-  // 프론트엔드에서 요구하는 JSON 형식으로 환율 데이터 응답
-  res.json({ KRW: 1400, HKD: 7.8 }); 
+app.get('/rates', async (req, res) => {
+  try {
+    const response = await fetch('https://open.er-api.com/v6/latest/USD');
+    const data = await response.json();
+    if (data && data.rates) {
+      return res.json({
+        USD: 1,
+        KRW: data.rates.KRW || 1400,
+        HKD: data.rates.HKD || 7.8
+      });
+    }
+    res.json({ USD: 1, KRW: 1400, HKD: 7.8 });
+  } catch (err) {
+    // API 연결 실패 시 기본 환율 반환 (서버 다운 방지)
+    res.json({ USD: 1, KRW: 1400, HKD: 7.8 });
+  }
 });
 
 // Basic route
