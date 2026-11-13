@@ -255,77 +255,87 @@
   <!-- ==========================================
        MODAL: ADD / EDIT SUBSCRIPTION
        ========================================== -->
-  <div id="sub-modal" class="modal-backdrop" aria-hidden="true">
-    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <!-- Subscription Modal (Add / Edit) -->
+  <div id="sub-modal" class="modal-overlay">
+    <div class="modal-card">
+
+      <!-- 모달 상단 헤더 (제목 + 닫기 버튼) -->
       <div class="modal-header">
-        <h3 id="modal-title">Add Subscription</h3>
-        <button type="button" id="close-modal-btn" class="icon-btn" aria-label="Close modal">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
+        <h2 id="modal-title">Add Subscription</h2>
+        <button type="button" id="close-modal-btn" class="modal-close-btn" aria-label="Close">&times;</button>
       </div>
 
-      <form id="sub-form" novalidate>
+      <!-- 모달 입력 폼 -->
+      <form id="sub-form" class="modal-form">
         <input type="hidden" id="sub-id" />
 
-        <div class="form-field">
+        <!-- 1줄: 서비스 이름 -->
+        <div class="form-group">
           <label for="sub-name">Service Name *</label>
-          <input type="text" id="sub-name" placeholder="e.g., Netflix, Spotify" required />
+          <input type="text" id="sub-name" placeholder="e.g. Netflix, Spotify" required />
         </div>
 
-        <div class="form-row">
-          <div class="form-field">
+        <!-- 2줄: 카테고리 & 결제 주기 (2단 배치) -->
+        <div class="form-row-2col">
+          <div class="form-group">
             <label for="sub-category">Category *</label>
-            <select id="sub-category" required>
-              <!-- Populated from Category Budgets -->
-            </select>
+            <select id="sub-category" required></select>
           </div>
 
-          <div class="form-field">
+          <div class="form-group">
             <label for="sub-cycle">Billing Cycle *</label>
-            <select id="sub-cycle" required>
+            <select id="sub-cycle">
               <option value="monthly">Monthly</option>
               <option value="yearly">Yearly</option>
             </select>
           </div>
         </div>
 
-        <div class="form-group">
-          <label id="label-sub-cost" for="sub-cost">Billing Amount *</label>
-          <div style="display: flex; gap: 8px;">
-            <input type="number" id="sub-cost" step="0.01" min="0" placeholder="0.00" required style="flex: 1;">
-            <select id="sub-currency" style="width: 110px;">
-              <option value="USD">USD ($)</option>
-              <option value="KRW">KRW (₩)</option>
-              <option value="HKD">HKD (HK$)</option>
-            </select>
+        <!-- 3줄: 결제 금액(+통화 선택) & 다음 결제일 (2단 배치) -->
+        <div class="form-row-2col">
+          <div class="form-group">
+            <label id="label-sub-cost" for="sub-cost">Billing Amount *</label>
+            <div class="cost-input-group">
+              <input type="number" id="sub-cost" step="0.01" min="0" placeholder="0.00" required />
+              <select id="sub-currency">
+                <option value="USD">USD ($)</option>
+                <option value="KRW">KRW (₩)</option>
+                <option value="HKD">HKD (HK$)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="sub-date">Next Renewal Date *</label>
+            <input type="date" id="sub-date" required />
           </div>
         </div>
 
-        <div class="form-field">
-          <label for="sub-date">Next Renewal Date *</label>
-          <input type="date" id="sub-date" required />
+        <!-- 4줄: 메모 -->
+        <div class="form-group">
+          <label for="sub-notes">Notes (Optional)</label>
+          <input type="text" id="sub-notes" placeholder="Shared plan, student discount, etc." />
         </div>
-    </div>
 
-    <div class="form-field">
-      <label for="sub-notes">Notes (Plan tier, shared status)</label>
-      <input type="text" id="sub-notes" placeholder="Optional note..." />
-    </div>
+        <!-- 5줄: 활성 상태 체크박스 -->
+        <div class="form-checkbox-group">
+          <input type="checkbox" id="sub-active" checked />
+          <label for="sub-active">Active subscription (include in monthly spending)</label>
+        </div>
 
-    <div class="form-field checkbox-field">
-      <input type="checkbox" id="sub-active" checked />
-      <label for="sub-active">Subscription is currently active</label>
-    </div>
+        <!-- 에러 메시지 표시 영역 -->
+        <p id="sub-form-error" class="form-error"></p>
 
-    <p id="sub-form-error" class="form-error" role="alert"></p>
+        <!-- 모달 하단 액션 버튼 (하얀 박스 내부 우측 정렬) -->
+        <div class="modal-footer">
+          <button type="button" id="cancel-modal-btn" class="btn btn-outline">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Subscription</button>
+        </div>
+      </form>
 
-    <div class="modal-footer">
-      <button type="button" id="cancel-modal-btn" class="btn btn-outline">Cancel</button>
-      <button type="submit" class="btn btn-primary">Save Subscription</button>
     </div>
-    </form>
   </div>
-  </div>
+  
 
   <footer class="site-footer">
     <p>COMP3421 Web Application Design and Development · Solo Project (SubHelper)</p>
