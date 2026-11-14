@@ -144,6 +144,24 @@ function updateCurrencyLabels() {
   const budgetLabel = document.getElementById("label-budget-cap");
   if (costLabel) costLabel.textContent = `Billing Amount (${currentCurrency}) *`;
   if (budgetLabel) budgetLabel.textContent = `Monthly Cap (${currentCurrency}) *`;
+
+  // 예산 입력 폼의 통화 드롭다운도 현재 통화로 자동 변경
+  const budgetCurrencySelect = document.getElementById("budget-currency");
+  if (budgetCurrencySelect) {
+    budgetCurrencySelect.value = currentCurrency;
+  }
+
+  // 만약 예산 수정(Edit) 중일 때 상단 통화를 바꾸면 입력창에 적힌 금액도 즉시 환산
+  const editingBudgetId = document.getElementById("budget-id")?.value;
+  if (editingBudgetId) {
+    const b = budgets.find((item) => item.id === editingBudgetId);
+    if (b) {
+      const rate = EXCHANGE_RATES[currentCurrency] || 1;
+      const convertedCap = b.monthlyCap * rate;
+      document.getElementById("budget-monthly-cap").value =
+        currentCurrency === "KRW" ? Math.round(convertedCap) : convertedCap.toFixed(2);
+    }
+  }
 }
 
 function populateCategorySelects() {
@@ -516,11 +534,21 @@ window.deleteSubscription = (id) => {
 window.editBudget = (id) => {
   const b = budgets.find((item) => item.id === id);
   if (!b) return;
+
+  const rate = EXCHANGE_RATES[currentCurrency] || 1;
+  const convertedCap = b.monthlyCap * rate;
+
   document.getElementById("budget-form-title").textContent = "Edit Category Budget";
   document.getElementById("budget-id").value = b.id;
   document.getElementById("budget-category-name").value = b.categoryName;
-  document.getElementById("budget-monthly-cap").value = (currentCurrency === "KRW" ? Math.round(b.monthlyCap) : b.monthlyCap.toFixed(2));
+  document.getElementById("budget-monthly-cap").value =
+    currentCurrency === "KRW" ? Math.round(convertedCap) : convertedCap.toFixed(2);
   document.getElementById("budget-alert-threshold").value = b.alertThreshold;
+
+  const budgetCurrencySelect = document.getElementById("budget-currency");
+  if (budgetCurrencySelect) {
+    budgetCurrencySelect.value = currentCurrency;
+  }
 };
 
 window.deleteBudget = (id) => {
@@ -632,32 +660,46 @@ document.addEventListener("DOMContentLoaded", () => {
     closeModal();
   });
 
+  
   // Budget Form Submit (POST or PUT)
   document.getElementById("budget-form").addEventListener("submit", (e) => {
     e.preventDefault();
     const id = document.getElementById("budget-id").value;
     const categoryName = document.getElementById("budget-category-name").value.trim();
-    const monthlyCap = parseFloat(document.getElementById("budget-monthly-cap").value);
+    const rawCap = parseFloat(document.getElementById("budget-monthly-cap").value);
+    const budgetCurrencyEl = document.getElementById("budget-currency");
+    const selectedCurrency = budgetCurrencyEl ? budgetCurrencyEl.value : currentCurrency;
     const alertThreshold = parseInt(document.getElementById("budget-alert-threshold").value, 10);
     const errorEl = document.getElementById("budget-form-error");
 
-    if (!categoryName || isNaN(monthlyCap) || monthlyCap <= 0 || isNaN(alertThreshold) || alertThreshold < 10 || alertThreshold > 100) {
+    if (!categoryName || isNaN(rawCap) || rawCap <= 0 || isNaN(alertThreshold) || alertThreshold < 10 || alertThreshold > 100) {
       errorEl.textContent = "Please provide a valid category name, a positive cap, and a threshold between 10 and 100.";
       return;
     }
 
     errorEl.textContent = "";
-    const budgetData = { id: id || "b_" + Date.now(), categoryName, monthlyCap, alertThreshold };
+
+    // 입력된 예산 한도를 DB 기준 통화(USD)로 자동 환산
+    const rate = EXCHANGE_RATES[selectedCurrency] || 1;
+    const monthlyCapInUSD = rawCap / rate;
+
+    const budgetData = {
+      id: id || "b_" + Date.now(),
+      categoryName,
+      monthlyCap: monthlyCapInUSD,
+      alertThreshold
+    };
 
     if (id) {
-      updateData('budgets', id, budgetData);
+      updateData("budgets", id, budgetData);
     } else {
-      createData('budgets', budgetData);
+      createData("budgets", budgetData);
     }
 
     document.getElementById("budget-form").reset();
     document.getElementById("budget-id").value = "";
     document.getElementById("budget-form-title").textContent = "Set Category Budget";
+    if (budgetCurrencyEl) budgetCurrencyEl.value = currentCurrency;
   });
 
   document.getElementById("budget-reset-btn").addEventListener("click", () => {
