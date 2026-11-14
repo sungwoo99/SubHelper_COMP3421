@@ -45,14 +45,14 @@ async function loadDataFromServer() {
       fetch(`${API_BASE_URL}/subscriptions`),
       fetch(`${API_BASE_URL}/budgets`)
     ]);
-    
+
     if (!subRes.ok || !budgetRes.ok) {
-       throw new Error('Failed to fetch subscriptions or budgets');
+      throw new Error('Failed to fetch subscriptions or budgets');
     }
 
     subscriptions = await subRes.json();
     budgets = await budgetRes.json();
-    
+
     // 화면 렌더링 실행
     renderAll();
   } catch (error) {
@@ -149,7 +149,7 @@ function updateCurrencyLabels() {
 function populateCategorySelects() {
   const filterCat = document.getElementById("filter-category");
   const modalCat = document.getElementById("sub-category");
-  if(!filterCat || !modalCat) return;
+  if (!filterCat || !modalCat) return;
 
   const currentFilterVal = filterCat.value;
   const categories = budgets.map((b) => b.categoryName);
@@ -164,63 +164,179 @@ function populateCategorySelects() {
 function renderCharts() {
   const activeSubs = subscriptions.filter(s => s.isActive);
   const rate = EXCHANGE_RATES[currentCurrency] || 1;
+  const symbol = CURRENCY_SYMBOLS[currentCurrency] || "$";
 
-  // 도넛 차트 (현재 통화 기준 환산)
+  // 다크모드 여부 확인 및 차트 내부 텍스트/그리드 색상 설정
+  const isDark = document.body.classList.contains("dark");
+  const textColor = isDark ? "#f8fafc" : "#1e293b";
+  const gridColor = isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.08)";
+
+  // 1. 도넛 차트 데이터: 통화에 상관없이 카테고리별 비율(%)로 계산 (소수점 제거)
   const catTotals = {};
   budgets.forEach(b => catTotals[b.categoryName] = 0);
   activeSubs.forEach(s => {
     if (catTotals[s.category] !== undefined) {
-      catTotals[s.category] += getMonthlyEquivalent(s) * rate;
+      catTotals[s.category] += getMonthlyEquivalent(s);
     }
   });
 
-  // 바 차트 (현재 통화 기준 환산)
+  const totalMonthlyUSD = Object.values(catTotals).reduce((sum, val) => sum + val, 0);
+  const catPercentages = Object.values(catTotals).map(val =>
+    totalMonthlyUSD > 0 ? Math.round((val / totalMonthlyUSD) * 100) : 0
+  );
+
+  // 2. 바 차트 데이터: 현재 선택된 통화(currentCurrency)로 환산 후 소수점 반올림 제거
   const monthlyData = new Array(12).fill(0);
   activeSubs.forEach(s => {
-    const costInCurrent = s.cost * rate;
+    const convertedCost = s.cost * rate;
     if (s.billingCycle === 'monthly') {
-      for (let i = 0; i < 12; i++) monthlyData[i] += costInCurrent;
+      for (let i = 0; i < 12; i++) monthlyData[i] += convertedCost;
     } else if (s.billingCycle === 'yearly') {
       const month = new Date(s.nextRenewalDate).getMonth();
-      monthlyData[month] += costInCurrent;
+      monthlyData[month] += convertedCost;
     }
   });
 
-  const maxMonthValue = Math.max(...monthlyData);
-  const barColors = monthlyData.map(val => val === maxMonthValue && val > 0 ? 'rgba(255, 99, 132, 0.7)' : 'rgba(54, 162, 235, 0.7)');
-  const barBorderColors = monthlyData.map(val => val === maxMonthValue && val > 0 ? 'rgba(255, 99, 132, 1)' : 'rgba(54, 162, 235, 1)');
+  // 모든 월별 데이터를 정수로 변환 (소수점 완전 제거)
+  const roundedMonthlyData = monthlyData.map(val => Math.round(val));
+
+  const maxMonthValue = Math.max(...roundedMonthlyData);
+  const barColors = roundedMonthlyData.map(val =>
+    val === maxMonthValue && val > 0 ? 'rgba(255, 99, 132, 0.75)' : 'rgba(54, 162, 235, 0.75)'
+  );
+  const barBorderColors = roundedMonthlyData.map(val =>
+    val === maxMonthValue && val > 0 ? 'rgba(255, 99, 132, 1)' : 'rgba(54, 162, 235, 1)'
+  );
 
   if (myBarChart) myBarChart.destroy();
   if (myDoughnutChart) myDoughnutChart.destroy();
 
+  // 바 차트 생성
   const ctxBar = document.getElementById('monthlyBarChart').getContext('2d');
   myBarChart = new Chart(ctxBar, {
     type: 'bar',
     data: {
       labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
       datasets: [{
-        label: `Spend cost (${currentCurrency})`,
-        data: monthlyData,
+        label: `Spending (${currentCurrency})`,
+        data: roundedMonthlyData,
         backgroundColor: barColors,
         borderColor: barBorderColors,
         borderWidth: 1
       }]
     },
-    options: { responsive: true, plugins: { legend: { display: false }, title: { display: true, text: `Expected Monthly Spending Trend (${currentCurrency})` } } }
+    options: {
+      responsive: true,
+      scales: {
+        x: {
+          ticks: { color: textColor },
+          grid: { color: gridColor }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            color: textColor,
+            precision: 0, // Y축 소수점 방지
+            callback: function (value) {
+              return symbol + Math.round(value).toLocaleString();
+            }
+          },
+          grid: { color: gridColor }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        title: {
+          display: true,
+          text: `Expected Monthly Spending Trend (${currentCurrency})`,
+          color: textColor,
+          font: { size: 14, weight: 'bold' }
+        },
+        tooltip: {
+          callbacks: {
+            // 마우스 커서를 올렸을 때 소수점 없이 정수와 통화기호만 출력
+            label: function (context) {
+              return ` ${symbol}${Math.round(context.parsed.y).toLocaleString()}`;
+            }
+          }
+        }
+      }
+    }
   });
 
+  // 도넛 차트 생성
   const ctxDoughnut = document.getElementById('categoryDoughnutChart').getContext('2d');
   myDoughnutChart = new Chart(ctxDoughnut, {
     type: 'doughnut',
     data: {
       labels: Object.keys(catTotals),
       datasets: [{
-        data: Object.values(catTotals),
-        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
+        data: catPercentages,
+        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'],
+        borderColor: isDark ? '#1e293b' : '#ffffff',
+        borderWidth: 2
       }]
     },
-    options: { responsive: true, plugins: { title: { display: true, text: `Monthly Spending by Category (${currentCurrency})` } } }
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          labels: { color: textColor }
+        },
+        title: {
+          display: true,
+          text: 'Monthly Spending by Category (%)',
+          color: textColor,
+          font: { size: 14, weight: 'bold' }
+        },
+        tooltip: {
+          callbacks: {
+            // 마우스 커서를 올렸을 때 소수점 없이 정수 퍼센트(%)로만 출력
+            label: function (context) {
+              return ` ${context.label}: ${Math.round(context.parsed)}%`;
+            }
+          }
+        }
+      }
+    }
   });
+}
+
+const maxMonthValue = Math.max(...monthlyData);
+const barColors = monthlyData.map(val => val === maxMonthValue && val > 0 ? 'rgba(255, 99, 132, 0.7)' : 'rgba(54, 162, 235, 0.7)');
+const barBorderColors = monthlyData.map(val => val === maxMonthValue && val > 0 ? 'rgba(255, 99, 132, 1)' : 'rgba(54, 162, 235, 1)');
+
+if (myBarChart) myBarChart.destroy();
+if (myDoughnutChart) myDoughnutChart.destroy();
+
+const ctxBar = document.getElementById('monthlyBarChart').getContext('2d');
+myBarChart = new Chart(ctxBar, {
+  type: 'bar',
+  data: {
+    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    datasets: [{
+      label: `Spend cost (${currentCurrency})`,
+      data: monthlyData,
+      backgroundColor: barColors,
+      borderColor: barBorderColors,
+      borderWidth: 1
+    }]
+  },
+  options: { responsive: true, plugins: { legend: { display: false }, title: { display: true, text: `Expected Monthly Spending Trend (${currentCurrency})` } } }
+});
+
+const ctxDoughnut = document.getElementById('categoryDoughnutChart').getContext('2d');
+myDoughnutChart = new Chart(ctxDoughnut, {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(catTotals),
+    datasets: [{
+      data: Object.values(catTotals),
+      backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
+    }]
+  },
+  options: { responsive: true, plugins: { title: { display: true, text: `Monthly Spending by Category (${currentCurrency})` } } }
+});
 }
 
 
@@ -391,7 +507,7 @@ function openModal(editId = null) {
     document.getElementById("sub-name").value = sub.name;
     document.getElementById("sub-category").value = sub.category;
     document.getElementById("sub-cycle").value = sub.billingCycle;
-    
+
     // 현재 선택된 통화 단위로 환산해서 보여줌
     const currentRate = EXCHANGE_RATES[currentCurrency] || 1;
     const convertedCost = sub.cost * currentRate;
@@ -455,7 +571,7 @@ window.deleteBudget = (id) => {
    Event Listeners & Initialization
    ========================================================================== */
 document.addEventListener("DOMContentLoaded", () => {
-  
+
   // 통화 및 테마 설정 불러오기
   const rawCurrency = localStorage.getItem(STORAGE_KEYS.CURRENCY);
   if (rawCurrency) {
@@ -496,6 +612,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.classList.toggle("dark");
     const isDark = document.body.classList.contains("dark");
     localStorage.setItem(STORAGE_KEYS.THEME, isDark ? "dark" : "light");
+    renderCharts(); // <-- 다크모드 전환 시 차트 색상도 즉시 업데이트
   });
 
   // Modal Open/Close
@@ -532,15 +649,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const rate = EXCHANGE_RATES[selectedCurrency] || 1;
     const costInUSD = rawCost / rate;
 
-    const subData = { 
-      id: id || "sub_" + Date.now(), 
-      name, 
-      category, 
-      billingCycle, 
+    const subData = {
+      id: id || "sub_" + Date.now(),
+      name,
+      category,
+      billingCycle,
       cost: costInUSD, // USD 값으로 저장
-      nextRenewalDate, 
-      isActive, 
-      notes 
+      nextRenewalDate,
+      isActive,
+      notes
     };
 
     if (id) {
@@ -573,7 +690,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       createData('budgets', budgetData);
     }
-    
+
     document.getElementById("budget-form").reset();
     document.getElementById("budget-id").value = "";
     document.getElementById("budget-form-title").textContent = "Set Category Budget";

@@ -756,3 +756,18 @@ body.dark .form-group select {
 body.dark .modal-footer {
   border-top-color: #334155;
 }
+
+
+/* 차트 컨테이너 라이트/다크모드 배경 연동 */
+.chart-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 20px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+body.dark .chart-box {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
