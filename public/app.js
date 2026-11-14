@@ -237,7 +237,7 @@ function renderCharts() {
           ticks: {
             color: textColor,
             precision: 0, // Y축 소수점 방지
-            callback: function (value) {
+            callback: function(value) {
               return symbol + Math.round(value).toLocaleString();
             }
           },
@@ -255,7 +255,7 @@ function renderCharts() {
         tooltip: {
           callbacks: {
             // 마우스 커서를 올렸을 때 소수점 없이 정수와 통화기호만 출력
-            label: function (context) {
+            label: function(context) {
               return ` ${symbol}${Math.round(context.parsed.y).toLocaleString()}`;
             }
           }
@@ -292,7 +292,7 @@ function renderCharts() {
         tooltip: {
           callbacks: {
             // 마우스 커서를 올렸을 때 소수점 없이 정수 퍼센트(%)로만 출력
-            label: function (context) {
+            label: function(context) {
               return ` ${context.label}: ${Math.round(context.parsed)}%`;
             }
           }
@@ -302,42 +302,6 @@ function renderCharts() {
   });
 }
 
-const maxMonthValue = Math.max(...monthlyData);
-const barColors = monthlyData.map(val => val === maxMonthValue && val > 0 ? 'rgba(255, 99, 132, 0.7)' : 'rgba(54, 162, 235, 0.7)');
-const barBorderColors = monthlyData.map(val => val === maxMonthValue && val > 0 ? 'rgba(255, 99, 132, 1)' : 'rgba(54, 162, 235, 1)');
-
-if (myBarChart) myBarChart.destroy();
-if (myDoughnutChart) myDoughnutChart.destroy();
-
-const ctxBar = document.getElementById('monthlyBarChart').getContext('2d');
-myBarChart = new Chart(ctxBar, {
-  type: 'bar',
-  data: {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-    datasets: [{
-      label: `Spend cost (${currentCurrency})`,
-      data: monthlyData,
-      backgroundColor: barColors,
-      borderColor: barBorderColors,
-      borderWidth: 1
-    }]
-  },
-  options: { responsive: true, plugins: { legend: { display: false }, title: { display: true, text: `Expected Monthly Spending Trend (${currentCurrency})` } } }
-});
-
-const ctxDoughnut = document.getElementById('categoryDoughnutChart').getContext('2d');
-myDoughnutChart = new Chart(ctxDoughnut, {
-  type: 'doughnut',
-  data: {
-    labels: Object.keys(catTotals),
-    datasets: [{
-      data: Object.values(catTotals),
-      backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
-    }]
-  },
-  options: { responsive: true, plugins: { title: { display: true, text: `Monthly Spending by Category (${currentCurrency})` } } }
-});
-}
 
 
 function renderDashboard() {
