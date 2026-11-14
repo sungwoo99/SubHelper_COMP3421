@@ -572,6 +572,16 @@ document.addEventListener("DOMContentLoaded", () => {
     if (currencySelect) currencySelect.value = currentCurrency;
   }
 
+  const budgetCurrencySelect = document.getElementById("budget-currency");
+  if (budgetCurrencySelect) {
+    budgetCurrencySelect.addEventListener("change", (e) => {
+      const budgetLabel = document.getElementById("label-budget-cap");
+      if (budgetLabel) {
+        budgetLabel.textContent = `Monthly Cap (${e.target.value}) *`;
+      }
+    });
+  }
+
   if (localStorage.getItem(STORAGE_KEYS.THEME) === "dark") {
     document.body.classList.add("dark");
   }
@@ -700,6 +710,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("budget-id").value = "";
     document.getElementById("budget-form-title").textContent = "Set Category Budget";
     if (budgetCurrencyEl) budgetCurrencyEl.value = currentCurrency;
+    updateCurrencyLabels(); // <-- 드롭다운과 라벨 글자를 현재 통화로 다시 맞춤
   });
 
   document.getElementById("budget-reset-btn").addEventListener("click", () => {
@@ -707,6 +718,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("budget-id").value = "";
     document.getElementById("budget-form-title").textContent = "Set Category Budget";
     document.getElementById("budget-form-error").textContent = "";
+    updateCurrencyLabels(); // <-- 드롭다운과 라벨 글자를 현재 통화로 다시 맞춤
   });
 
 
